@@ -1,0 +1,63 @@
+---
+title: 'Waitlist_Survival_Data_Processing, Updated July 2022'
+author: 'Kenley Pelzer, Kevin Zhang'
+date: "`r format(Sys.time(), '%d-%b-%y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+rm(list=ls())
+setwd('C:/Users/kevinz94/Desktop/HeartDataPipeline/')
+if (!require('pacman')) {install.packages('pacman')}
+library(pacman)
+pacman::p_load(tidyverse, mice)
+```
+
+-----------
+
+## Multiple Imputation of Selected Variables
+```{r, echo=T, warning=F, comment=NA}
+# Read in csv files that were created in Jupyter notebooks and delete first column that is just row indices
+early_cohort_miss <- read.csv('./ResultsFiles/early_cohort_data.csv')[,-1]
+late_cohort_miss <- read.csv('./ResultsFiles/late_cohort_data.csv')[,-1]
+total_cases <- rbind(early_cohort_miss, late_cohort_miss)
+
+
+# Create boolean vector that has TRUE for cases to be ignored in creating the imputation model, since we want to ignore cases in test set
+test_vec <- !logical(length = nrow(late_cohort_miss))  
+length(test_vec) # 5094 TRUE values
+train_vec <- logical(length = nrow(early_cohort_miss)) 
+length(train_vec) # 27200 FALSE values
+
+
+# Create one boolean vector to insert into mice ignore function
+bool_vec <- append(x = train_vec, values = test_vec, after = length(train_vec))
+# Remove t and died_noT from matrix that MICE algorithm sees 
+total_no_surv <- select(total_cases, -c(t, died_noT))
+
+# Impute using only the early cohort data (bool_vec = TRUE) for training
+imp.ignore <- mice::mice(total_no_surv, m = 1, maxit = 100, ignore = bool_vec, seed = 1,
+                         printFlag = F)
+total <- mice::complete(imp.ignore)
+
+# Add survival variables back to dataframe
+total$died_noT <- total_cases$died_noT
+total$t <- total_cases$t
+
+# Separate back into early and late cohorts
+early_cohort <- total[1:nrow(early_cohort_miss), ]
+late_cohort <- total[(1+(nrow(early_cohort_miss))):nrow(total), ]
+
+
+
+write.csv(total_cases, file = './ResultsFiles/not_imputed.csv',row.names = F)
+write.csv(total, file = './ResultsFiles/imputed.csv',row.names = F)
+```
+
+-----------
+
+```{r, echo=T, warning=F, comment=NA}
+save(early_cohort, file = './ResultsFiles/early_cohort.rds')
+save(late_cohort, file = './ResultsFiles/late_cohort.rds')
+```
+

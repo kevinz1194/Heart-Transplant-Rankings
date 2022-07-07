@@ -1,0 +1,160 @@
+---
+title: 'Bootstrapping C-Indices'
+author: 'Kenley Pelzer, Kevin Zhang'
+date: "`r format(Sys.time(), '%d-%b-%y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+rm(list=ls())
+setwd('C:/Users/kevinz94/Desktop/HeartDataPipeline')
+if (!require('pacman')) {install.packages('pacman')}
+library(pacman)
+pacman::p_load(tidyverse, Hmisc, boot)
+
+load('./late_cohort.rds')
+load('./train_with_treatments_fit.rds')
+load('./train_no_treatments_fit.rds')
+load('./ResultsFiles/Saved_rsf_t_object.rds')
+load('./ResultsFiles/Saved_rsf_n_object.rds')
+
+
+# C-index function for CPH bootstrapping with treatment
+cpht_for_boot <- function(test_cohort, indices) {
+  test_data <- test_cohort[indices,]
+  survival_predictions <- predict(train_with_treatments.fit, newdata = test_data, type = 'risk')
+  return(Hmisc::rcorr.cens(-survival_predictions, Surv(test_data$t, test_data$died_noT))['C Index'])
+}
+
+# C-index function for CPH bootstrapping without treatment
+cphn_for_boot <- function(test_cohort, indices) {
+  test_data <- test_cohort[indices,]
+  survival_predictions_n <- predict(train_no_treatments.fit, newdata = test_data,type = 'risk')
+  return(Hmisc::rcorr.cens(-survival_predictions_n,Surv(test_data$t, test_data$died_noT))['C Index'])
+}
+
+# C-index function for RSF bootstrapping with treatment
+rsf_t_for_boot <- function(test_cohort,indices) {
+  test_data <- test_cohort[indices, ]
+  survival_predictions <- predict(rsf_t, newdata = test_data)
+  return(Hmisc::rcorr.cens(-survival_predictions$predicted, 
+                           Surv(test_data$t, test_data$died_noT))['C Index'])
+}
+
+# C-index function for RSF bootstrapping without treatment
+rsf_nt_for_boot <- function(test_cohort,indices){
+  test_data <- test_cohort[indices, ] 
+  survival_predictions <- predict(rsf_n, newdata = test_data)
+  return(Hmisc::rcorr.cens(-survival_predictions$predicted,
+                           Surv(test_data$t, test_data$died_noT))['C Index'])
+}
+```
+
+---------------
+
+## CPH With Treatment
+Print output to check for match with previous c-index results
+```{r, echo=T, warning=F, comment=NA}
+c <- cpht_for_boot(late_cohort)
+print(c)
+```
+
+### Bootstrap with CI's
+```{r, echo=T, warning=F, comment=NA}
+set.seed(1)
+results_ct <- boot::boot(data = late_cohort, statistic = cpht_for_boot, R = 250)
+print(mean(results_ct$t))
+
+
+save(results_ct, file = './ResultsFiles/Saved_cpht_boot.rds')
+
+
+boot.ci(boot.out = results_ct,type = c('norm', 'perc', 'basic'))
+```
+
+
+---------------
+
+## CPH Without Treatment
+Print output to check for match with previous c-index results
+```{r, echo=T, warning=F, comment=NA}
+c <- cphn_for_boot(late_cohort)
+print(c)
+```
+
+### Bootstrap with CI's
+```{r, echo=T, warning=F, comment=NA}
+set.seed(1)
+results_cn <- boot::boot(data = late_cohort, statistic = cphn_for_boot, R = 250)
+print(mean(results_cn$t))
+
+
+save(results_cn, file = './ResultsFiles/Saved_cphn_boot.rds')
+
+
+boot.ci(boot.out = results_cn, type = c('norm', 'perc', 'basic')) 
+```
+
+
+---------------
+
+
+## RSF With Treatment
+Print to confirm match to previous c-index results
+```{r, echo=T, warning=F, comment=NA}
+c <- rsf_t_for_boot(late_cohort)
+print(c)
+```
+
+### Bootstrap with CI's
+```{r, echo=T, warning=F, comment=NA}
+set.seed(1)
+results_rt <- boot::boot(data = late_cohort, statistic = rsf_t_for_boot, R = 250)
+print(mean(results_rt$t))
+
+
+save(results_rt, file = './ResultsFiles/Saved_rsft_boot.rds')
+
+
+boot.ci(boot.out = results_rt, type = c('norm', 'perc', 'basic'))
+```
+
+
+---------------
+
+
+## RSF Without Treatment
+Print to confirm match to previous c-index results
+```{r, echo=T, warning=F, comment=NA}
+c <- rsf_nt_for_boot(late_cohort)
+print(c)
+```
+
+### Bootstrap with CI's
+```{r, echo=T, warning=F, comment=NA}
+set.seed(1)
+results_rn <- boot::boot(data = late_cohort, statistic = rsf_nt_for_boot, R = 250)
+print(mean(results_rn$t))
+
+
+save(results_rn, file = './ResultsFiles/Saved_rsfn_boot.rds')
+
+
+boot.ci(boot.out = results_rn,type = c('norm', 'perc', 'basic'))
+```
+
+
+---------------
+
+## Results
+```{r, echo=T, warning=F, comment=NA}
+load(file ='./ResultsFiles/Saved_cphn_boot.rds')
+load(file ='./ResultsFiles/Saved_cpht_boot.rds')
+load(file = './ResultsFiles/Saved_rsft_boot.rds')
+load(file = './ResultsFiles/Saved_rsfn_boot.rds')
+
+boot::boot.ci(boot.out = results_ct, type = 'norm')
+boot::boot.ci(boot.out = results_cn, type = 'norm')
+boot::boot.ci(boot.out = results_rt, type = 'norm')
+boot::boot.ci(boot.out = results_rn, type = 'norm')
+```

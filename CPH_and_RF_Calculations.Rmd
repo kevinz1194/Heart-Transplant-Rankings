@@ -1,0 +1,198 @@
+---
+title: 'CPH_and_RF_Calculations, Updated July 2022'
+author: 'Kenley Pelzer, Kevin Zhang'
+date: "`r format(Sys.time(), '%d-%b-%y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+rm(list=ls())
+setwd('C:/Users/kevinz94/Desktop/HeartDataPipeline/')
+if (!require('pacman')) {install.packages('pacman')}
+library(pacman)
+pacman::p_load(tidyverse, survival, randomForestSRC)
+
+
+load('./early_cohort.rds')
+load('./late_cohort.rds')
+```
+
+## Cox PH Models
+```{r, echo=T, warning=F, comment=NA}
+### Define model formulas
+Surv <- survival::Surv
+
+formula_treat <- Surv(t,died_noT) ~ age_m + listing_year_m + can_bmi_m + 
+  gfr_m + cardiac_index_m + can_pulm_art_mean_m + can_pcw_mean_m + diag_restricted  +
+  diag_hypertrophic + diag_valvular + diag_congenital + diag_ischemic + diag_OTHER +      
+  diabetes + malig + tobacco + cereb_vasc + blood_type_A + blood_type_AB + blood_type_B + 
+  other_vad + lvad + CAN_ECMO + CAN_IABP + CAN_IV_INOTROP
+
+formula_no_treat <- Surv(t,died_noT) ~ age_m + listing_year_m + can_bmi_m + 
+  gfr_m + cardiac_index_m + can_pulm_art_mean_m + can_pcw_mean_m + diag_restricted  +
+  diag_hypertrophic + diag_valvular + diag_congenital + diag_ischemic + diag_OTHER + 
+  diabetes + malig + tobacco + cereb_vasc + blood_type_A + blood_type_AB + blood_type_B 
+
+rm(Surv)
+```
+
+-----------
+
+### CPT Calculation, With Treatment
+```{r, echo=T, warning=F, comment=NA}
+train_with_treatments.fit <- survival::coxph(formula = formula_treat, 
+                                             data = early_cohort,
+                                             ties = 'breslow', x = T)
+summary(train_with_treatments.fit)
+save(train_with_treatments.fit, file = './train_with_treatments_fit.rds')
+
+
+# Risk prediction for later use
+cpht <- predict(train_with_treatments.fit, newdata = late_cohort, type = 'risk')
+
+# Harrell's c-index
+survival::concordance(train_with_treatments.fit, newdata = late_cohort, timewt = 'n')
+```
+
+
+
+<!-- ### Sanity check to confirm that rcorr method matches concordance command and calculation of c-index within coxph -->
+```{r, echo=T, warning=F, comment=NA}
+# survival_predictions_cph_early <- 
+#   predict(train_with_treatments.fit,
+#           newdata = early_cohort,
+#           type = 'risk')
+# Hmisc::rcorr.cens(x = -survival_predictions_cph_early,
+#                   S = Surv(early_cohort$t, early_cohort$died_noT))['C Index']
+# 
+# 
+# 
+# survival_predictions_cph_late <-
+#   predict(train_with_treatments.fit,
+#           newdata = late_cohort,
+#           type = 'risk')
+# Hmisc::rcorr.cens(x = -survival_predictions_cph_late,
+#                   S = Surv(late_cohort$t, late_cohort$died_noT))['C Index']
+
+```
+
+-----------
+
+### CPT Calculation, No Treatment
+```{r, echo=T, warning=F, comment=NA}
+train_no_treatments.fit <- survival::coxph(formula = formula_no_treat, 
+                                             data = early_cohort,
+                                             ties = 'breslow', x = T)
+summary(train_no_treatments.fit)
+save(train_no_treatments.fit, file = './train_no_treatments_fit.rds')
+
+# Risk prediction for later use
+cphn <- predict(train_no_treatments.fit, newdata = late_cohort, type = 'risk')
+
+# Harrell's c-index
+survival::concordance(train_no_treatments.fit, newdata = late_cohort, timewt = 'n')
+```
+
+-----------
+
+## Random Survival Forests Models
+### Optimize Hyperparameters, With Treatment
+```{r, echo=T, warning=F, comment=NA}
+### Attempt with 100, 250, 500, 750, 1000, 1250, 1500 trees
+for (i in c(100, 250, 500, 750, 1000, 1250, 1500)) {
+  results <- data.frame(randomForestSRC::tune(formula_treat, 
+                                             data = early_cohort, 
+                                             mtryStart = 5, 
+                                             nodesizeTry = c(5,15,25), 
+                                             ntreeTry = i, 
+                                             stepFactor = 2, 
+                                             seed = 1, save.memory = T)$results)
+  ### Add column showing number of trees
+  trees = data.frame('trees' = rep(i, nrow(results)))
+  
+  ### Save
+  assign(x = paste0('t', i),
+         value = cbind(results, trees),
+         envir = .GlobalEnv)
+  
+  rm(results); rm(trees)
+
+}
+
+### Aggregate
+tuning_t <- rbind(t100, t250, t500, t750, t1000, t1250, t1500)
+write.csv(tuning_t, file = './ResultsFiles/tuning_with_treatments.csv', row.names = F)
+
+```
+
+-----------
+
+### Optimize Hyperparameters, Without Treatment
+```{r, echo=T, warning=F, comment=NA}
+for (i in c(100, 250, 500, 750, 1000, 1250, 1500)) {
+  results <- data.frame(randomForestSRC::tune(formula_no_treat, 
+                                             data = early_cohort, 
+                                             mtryStart = 5, 
+                                             nodesizeTry = c(5,15,25), 
+                                             ntreeTry = i, 
+                                             stepFactor = 2, 
+                                             seed = 1, save.memory = T)$results)
+  ### Add column showing number of trees
+  trees = data.frame('trees' = rep(i, nrow(results)))
+  
+  ### Save
+  assign(x = paste0('n', i),
+         value = cbind(results, trees),
+         envir = .GlobalEnv)
+  
+  rm(results); rm(trees)
+}
+
+
+tuning_n <- rbind(n100, n250, n500, n750, n1000, n1250, n1500)
+write.csv(tuning_n, file = './ResultsFiles/tuning_no_treatments.csv', row.names = F)
+```
+
+-----------
+
+## Run RSF, Treatment, Manually Assigned Hyperparameters- use with plots_for_publication
+```{r, echo=T, warning=F, comment=NA}
+rsf_t <- randomForestSRC::rfsrc(formula_treat, 
+                                data = early_cohort, 
+                                ntreeTry = 1000, mtryStart = 20, nodesizeTry = 5, 
+                                seed = -1, ntime = 0, save.memory = T)
+survival_predictions_t <- predict(rsf_t, newdata = late_cohort, seed = -1)
+c_rsf_with_treatments <- Hmisc::rcorr.cens(-survival_predictions_t$predicted,
+                                           Surv(late_cohort$t,late_cohort$died_noT))['C Index']
+
+save(rsf_t, file = './ResultsFiles/Saved_rsf_t_object.rds')
+save(survival_predictions_t, file = './ResultsFiles/survival_predictions_t.rds')
+```
+
+-----------
+
+## Run RSF, No Treatment, Manually Assigned Hyperparameters
+```{r, echo=T, warning=F, comment=NA}
+rsf_n <- randomForestSRC::rfsrc(formula_no_treat, 
+                                data = early_cohort, 
+                                ntreeTry = 1000, mtryStart = 20, nodesizeTry = 5, 
+                                seed = -1, ntime = 0, save.memory = T)
+survival_predictions_n <- predict(rsf_n, newdata = late_cohort, seed = -1)
+c_rsf_no_treatments <- Hmisc::rcorr.cens(-survival_predictions_n$predicted,
+                                         Surv(late_cohort$t, late_cohort$died_noT))['C Index']
+
+
+
+save(rsf_n, file = './ResultsFiles/Saved_rsf_n_object.rds')
+save(survival_predictions_n, file = './ResultsFiles/survival_predictions_n.rds')
+```
+
+-----------
+
+## Harrell's C-Index
+```{r, echo=T, warning=F, comment=NA}
+print(c_rsf_with_treatments)
+print(c_rsf_no_treatments)
+```
+ 
+

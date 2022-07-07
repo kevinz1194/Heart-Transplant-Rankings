@@ -1,0 +1,111 @@
+---
+title: 'Brier Scores, Updated July 2022'
+author: 'Kenley Pelzer, Kevin Zhang'
+date: "`r format(Sys.time(), '%d-%b-%y')`"
+output: html_document
+---
+
+
+```{r setup, include = FALSE}
+rm(list = ls())
+setwd('C:/Users/kevinz94/Desktop/HeartDataPipeline/')
+if (!require('pacman')) {install.packages('pacman')}
+library(pacman)
+pacman::p_load(tidyverse, survival, riskRegression)
+
+
+load('./train_with_treatments_fit.rds')
+load('./train_no_treatments_fit.rds')
+load('./ResultsFiles/Saved_rsf_t_object.rds')
+load('./ResultsFiles/Saved_rsf_n_object.rds')
+load('./ResultsFiles/late_cohort.rds')
+```
+
+--------------
+
+## Setup- Functions, Time Range for Brier Scores
+```{r, echo=T, warning=F, comment=NA}
+predictRisk <- riskRegression::predictRisk
+Score <- riskRegression::Score
+
+timespan <- 365
+times_risk <- c(1:timespan)
+```
+
+--------------
+
+## Brier Scores for CPH
+### With Treatment
+```{r, echo=T, warning=F, comment=NA}
+cph_t_risk <- predictRisk(train_with_treatments.fit, newdata = late_cohort, times = times_risk)
+cph_t_score <- Score(list(cph_t_risk),
+                     formula = Surv(t,died_noT) ~ 1,
+                     data = late_cohort,
+                     cens.model = 'km', metrics = 'brier',
+                     times = times_risk, null.model = F)
+cph_t_brier <- cph_t_score$Brier$score$Brier
+```
+
+--------------
+
+### No Treatment
+```{r, echo=T, warning=F, comment=NA}
+cph_nt_risk <- predictRisk(train_no_treatments.fit, newdata = late_cohort, times = times_risk)
+cph_nt_score <- Score(list(cph_nt_risk),
+                      formula = Surv(t,died_noT) ~ 1,
+                      data = late_cohort,
+                      cens.model = 'km', metrics = 'brier',
+                      times = times_risk, null.model = F)
+cph_nt_brier <- cph_nt_score$Brier$score$Brier
+```
+
+
+--------------
+
+
+## Brier Scores for RSF
+### With Treatment
+```{r, echo=T, warning=F, comment=NA}
+rsf_t_risk <- predictRisk(rsf_t, newdata = late_cohort, times = times_risk)
+rsf_t_score <- Score(list(rsf_t_risk),
+                     formula = Surv(t,died_noT) ~ 1,
+                     data = late_cohort, 
+                     cens.model = 'km', metrics = 'brier',
+                     times = times_risk, null.model = F)
+rsf_t_brier <- rsf_t_score$Brier$score$Brier
+```
+
+--------------
+
+### No Treatment
+```{r, echo=T, warning=F, comment=NA}
+rsf_nt_risk <- predictRisk(rsf_n, newdata = late_cohort, times = times_risk)
+rsf_nt_score <- Score(list(rsf_nt_risk),
+                      formula = Surv(t,died_noT)  ~1,
+                      data = late_cohort,
+                      cens.model = 'km', metrics = 'brier',
+                      times = times_risk, null.model = F)
+rsf_nt_brier <- rsf_nt_score$Brier$score$Brier
+```
+
+
+--------------
+
+
+## Table of Scores
+```{r, echo=T, warning=F, comment=NA}
+brier_df <- data.frame('times' = times_risk, 
+                       'CPH_T' = cph_t_brier, 
+                       'RSF_T' = rsf_t_brier, 
+                       'CPH_NT' = cph_nt_brier, 
+                       'RSF_NT' = rsf_nt_brier)
+
+
+write.csv(brier_df, file = './ResultsFiles/brier_table.csv', row.names = F)
+```
+
+
+ 
+
+
+

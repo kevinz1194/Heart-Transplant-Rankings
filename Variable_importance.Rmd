@@ -1,0 +1,171 @@
+---
+title: 'RSF Variable Importance, Updated July 2022'
+author: 'Kenley Pelzer, Kevin Zhang'
+date: "`r format(Sys.time(), '%d-%b-%y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+rm(list=ls())
+setwd('C:/Users/kevinz94/Desktop/HeartDataPipeline/')
+if (!require('pacman')) {install.packages('pacman')}
+library(pacman)
+pacman::p_load(tidyverse, randomForestSRC)
+
+
+load('./ResultsFiles/Saved_rsf_t_object.rds')
+load('./ResultsFiles/Saved_rsf_n_object.rds')
+```
+
+---------------
+
+## Individual Variable Importance, With Treatment
+```{r, echo=T, warning=F, comment=NA}
+vimp_t <- randomForestSRC::vimp(rsf_t, seed = -1, save.memory = T)$importance
+print(vimp_t)
+save(vimp_t, file = './ResultsFiles/Saved_vimp_t_object.rds')
+```
+
+---------------
+
+## Individual Variable Importance, No Treatment
+```{r, echo=T, warning=F, comment=NA}
+vimp_n <- randomForestSRC::vimp(rsf_n, seed = -1, save.memory = T)$importance
+print(vimp_n)
+save(vimp_n, file = './ResultsFiles/Saved_vimp_n_object.rds')
+```
+
+---------------
+
+## Joint Variable Importances, With Treatment
+### Lab/Physiological Variables
+```{r, echo=T, warning=F, comment=NA}
+vimp_t_lab <- 
+  randomForestSRC::vimp(rsf_t, c('gfr_m','cardiac_index_m','can_pulm_art_mean_m','can_pcw_mean_m'), 
+                        joint = T, seed = -1)$importance
+print(vimp_t_lab)
+save(vimp_t_lab, file = './ResultsFiles/Saved_vimp_t_lab_object.rds')
+```
+
+
+### Cardiac Diagnoses Variables
+```{r, echo=T, warning=F, comment=NA}
+vimp_t_diag <- 
+  randomForestSRC::vimp(rsf_t,c('diag_restricted','diag_hypertrophic','diag_valvular',
+                                'diag_congenital','diag_ischemic','diag_OTHER'), 
+                        joint = T, seed = -1)$importance
+print(vimp_t_diag)
+save(vimp_t_diag, file = './ResultsFiles/Saved_vimp_t_diag_object.rds')
+```
+
+
+### Treatment Variables
+```{r, echo=T, warning=F, comment=NA}
+vimp_t_treat <- 
+  randomForestSRC::vimp(rsf_t, c('other_vad','lvad','CAN_ECMO','CAN_IABP','CAN_IV_INOTROP'), 
+                        joint = T, seed = -1)$importance
+print(vimp_t_treat)
+save(vimp_t_treat, file = './ResultsFiles/Saved_vimp_t_treat_object.rds')
+```
+
+
+### Medical History Variables
+```{r, echo=T, warning=F, comment=NA}
+vimp_t_hist <- randomForestSRC::vimp(rsf_t, c('malig','tobacco','cereb_vasc'), 
+                                     joint = T, seed = -1)$importance
+print(vimp_t_hist)
+save(vimp_t_hist, file = './ResultsFiles/Saved_vimp_t_hist_object.rds')
+```
+
+
+### Other Variables
+```{r, echo=T, warning=F, comment=NA}
+vimp_t_other <- 
+  randomForestSRC::vimp(rsf_t, c('diabetes','age_m','can_bmi_m','listing_year_m'), 
+                        joint = T, seed = -1)$importance
+print(vimp_t_other)
+save(vimp_t_other, file = './ResultsFiles/Saved_vimp_t_other_object.rds')
+```
+
+
+### Blood Type Variables
+```{r, echo=T, warning=F, comment=NA}
+vimp_t_blood <- 
+  randomForestSRC::vimp(rsf_t, c('blood_type_A','blood_type_AB','blood_type_B'), 
+                        joint = T, seed = -1)$importance
+print(vimp_t_blood)
+save(vimp_t_blood, file = './ResultsFiles/Saved_vimp_t_blood_object.rds')
+```
+
+---------------
+
+## Joint Variable Importances, No Treatment
+### Lab/Physiological Variables
+```{r, echo=T, warning=F, comment=NA}
+vimp_n_lab <- 
+  randomForestSRC::vimp(rsf_n, c('gfr_m','cardiac_index_m','can_pulm_art_mean_m','can_pcw_mean_m'), 
+                        joint = T, seed = -1)$importance
+print(vimp_n_lab)
+save(vimp_n_lab, file = './ResultsFiles/Saved_vimp_n_lab_object.rds')
+```
+
+
+### Cardiac Diagnoses Variables
+```{r, echo=T, warning=F, comment=NA}
+vimp_n_diag <- 
+  randomForestSRC::vimp(rsf_n, c('diag_restricted','diag_hypertrophic','diag_valvular',
+                                 'diag_congenital','diag_ischemic','diag_OTHER'), 
+                        joint = T, seed = -1)$importance
+print(vimp_n_diag)
+save(vimp_n_diag, file = './ResultsFiles/Saved_vimp_n_diag_object.rds')
+```
+
+
+### Medical History Variables
+```{r, echo=T, warning=F, comment=NA}
+vimp_n_hist <- 
+  randomForestSRC::vimp(rsf_n, c('malig','tobacco','cereb_vasc'), joint = T, seed = -1)$importance
+print(vimp_n_hist)
+save(vimp_n_hist, file = './ResultsFiles/Saved_vimp_n_hist_object.rds')
+```
+
+
+### Other Variables
+```{r, echo=T, warning=F, comment=NA}
+vimp_n_other <- randomForestSRC::vimp(rsf_n, c('diabetes','age_m','can_bmi_m','listing_year_m'), 
+                                      joint = T, seed = -1)$importance
+print(vimp_n_other)
+save(vimp_n_other, file = './ResultsFiles/Saved_vimp_n_other_object.rds')
+```
+
+
+### Blood Type Variables
+```{r, echo=T, warning=F, comment=NA}
+vimp_n_blood <- 
+  randomForestSRC::vimp(rsf_n, c('blood_type_A','blood_type_AB','blood_type_B'), 
+                        joint = T, seed = -1)$importance
+print(vimp_n_blood)
+save(vimp_n_blood, file = './ResultsFiles/Saved_vimp_n_blood_object.rds')
+```
+
+---------------
+
+
+## Export 
+```{r, echo=T, warning=F, comment=NA}
+vimp_categories <- data.frame('labs' = c(vimp_t_lab, vimp_n_lab),
+                              'treatments' = c(vimp_t_treat, 0),
+                              'diagnosis' = c(vimp_t_diag, vimp_n_diag),
+                              'blood' = c(vimp_t_blood, vimp_n_blood),
+                              'history' = c(vimp_t_hist, vimp_n_hist),
+                              'other' = c(vimp_t_other, vimp_n_other))
+rownames(vimp_categories) <- c('With Treatments', 'No Treatments')
+
+
+vimp_n_csv <- data.frame(vimp_n)
+vimp_t_csv <- data.frame(vimp_t)
+
+write.csv(vimp_categories, file = './ResultsFiles/vimp_categories.csv')
+write.csv(vimp_n_csv, file = './ResultsFiles/vimp_no_treatments.csv')
+write.csv(vimp_t_csv, file = './ResultsFiles/vimp_with_treatments.csv')
+```

@@ -1,0 +1,59 @@
+---
+title: 'C-Index for 6-Status System, Updated July 2022'
+author: 'Kenley Pelzer, Kevin Zhang'
+date: "`r format(Sys.time(), '%d-%b-%y')`"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+rm(list=ls())
+setwd('C:/Users/kevinz94/Desktop/HeartDataPipeline/')
+if (!require('pacman')) {install.packages('pacman')}
+library(pacman)
+pacman::p_load(tidyverse, Hmisc, boot)
+
+
+
+### C-index function for bootstrapping
+status6_for_boot <- function(test_cohort,indices){
+  test_data <- test_cohort[indices, ]
+  return(Hmisc::rcorr.cens(test_data$status6, Surv(test_data$t, test_data$died_noT))['C Index'])
+}
+```
+
+-----------
+
+This code snippet requires a csv file created in Jupyter Notebook (Python) which contains the late cohort with only the variables t, died_noT, and the 6-status ranking.
+```{r, echo=T, warning=F, comment=NA}
+later6 <- read.csv('./later6.csv')
+```
+
+
+## C-Index Calculation, 6-Status Ranking Only
+```{r, echo=T, warning=F, comment=NA}
+c6 <- Hmisc::rcorr.cens(later6$status6,  Surv(later6$t, later6$died_noT))['C Index']
+print(c6)
+```
+
+
+<!-- ### Check generated function to confirm value -->
+```{r, echo=T, warning=F, comment=NA}
+# c <- status6_for_boot(later6)
+# print(c)
+```
+
+-----------
+
+## Bootstrap and CI's
+```{r, echo=T, warning=F, comment=NA}
+set.seed(1)
+results6 <- boot::boot(data = later6, statistic = status6_for_boot, R=250)
+print(mean(results6$t))
+
+
+boot::boot.ci(boot.out = results6, type = c('norm', 'perc', 'basic'))
+
+
+save(results6, file = './ResultsFiles/boot_result_6.rds')
+```

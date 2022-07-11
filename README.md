@@ -1,8 +1,6 @@
 # Heart-Transplant-Rankings
 
 Code files corresponding to the 'The Accuracy of Initial US Heart Candidate Rankings'. <br />
-KP wrote the Python and R files. <br />
-KZ tested and updated the code and is currently maintaining the Github. <br />
 
 Files should be run in this order:
 

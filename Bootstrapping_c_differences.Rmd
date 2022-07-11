@@ -1,0 +1,272 @@
+---
+title: 'Bootstrapping C-Differences'
+author: "Kenley Pelzer, Kevin Zhang"
+date: "`r format(Sys.time(), '%d-%b-%y')`"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+rm(list=ls())
+setwd('C:/Users/kevinz94/Desktop/HeartDataPipeline/')
+if (!require('pacman')) {install.packages('pacman')}
+library(pacman)
+pacman::p_load(tidyverse, Hmisc, boot)
+
+
+load('./late_cohort.rds')
+load('./train_with_treatments_fit.rds')
+load('./train_no_treatments_fit.rds')
+load('./ResultsFiles/Saved_rsf_t_object.rds')
+load('./ResultsFiles/Saved_rsf_n_object.rds')
+later6 <- read.csv('./later6.csv')
+
+
+# C-index function for CPH bootstrapping with treatment
+cph_vs_6_for_boot <- function(test_cohort,indices) {
+  test_data <- test_cohort[indices, ]
+  survival_predictions_cph <- predict(train_with_treatments.fit,newdata = test_data,type = 'risk')
+  c_cph <- Hmisc::rcorr.cens(-survival_predictions_cph,Surv(test_data$t, test_data$died_noT))['C Index']
+  c6 <- Hmisc::rcorr.cens(test_data$status6,Surv(test_data$t, test_data$died_noT))['C Index']
+  cph_vs_6 <- c_cph - c6
+  return(cph_vs_6)
+}
+
+# C-index function for CPH bootstrapping without treatment
+cphn_vs_6_for_boot <- function(test_cohort,indices){
+  test_data <- test_cohort[indices, ]
+  survival_predictions_cph <- predict(train_no_treatments.fit,newdata = test_data,type = 'risk')
+  c_cph <- Hmisc::rcorr.cens(-survival_predictions_cph,Surv(test_data$t, test_data$died_noT))['C Index']
+  c6 <- Hmisc::rcorr.cens(test_data$status6,Surv(test_data$t, test_data$died_noT))['C Index']
+  cph_vs_6 <- c_cph - c6
+  return(cph_vs_6)
+}
+
+# C-index function for RSF bootstrapping with treatment
+rsf_vs_6_for_boot <- function(test_cohort,indices){
+  test_data <- test_cohort[indices, ]
+  survival_predictions_rsf <- predict(rsf_t, newdata  =  test_data)
+  c_rsf <- Hmisc::rcorr.cens(-survival_predictions_rsf$predicted,  Surv(test_data$t,test_data$died_noT))['C Index']
+  c6 <- Hmisc::rcorr.cens(test_data$status6,Surv(test_data$t, test_data$died_noT))['C Index']
+  rsf_vs_6 <- c_rsf - c6
+  return(rsf_vs_6)
+}
+
+# C-index function for RSF bootstrapping without treatment
+rsfn_vs_6_for_boot <- function(test_cohort,indices){
+  test_data <- test_cohort[indices, ]
+  survival_predictions_rsfn <- predict(rsf_n, newdata  =  test_data)
+  c_rsfn <- Hmisc::rcorr.cens(-survival_predictions_rsfn$predicted,  Surv(test_data$t,test_data$died_noT))['C Index']
+  c6 <- Hmisc::rcorr.cens(test_data$status6, Surv(test_data$t,test_data$died_noT))['C Index']
+  rsfn_vs_6 <- c_rsfn - c6
+  return(rsfn_vs_6)
+}
+```
+
+---------
+
+Add column with 6-status ranking to the late cohort
+```{r, echo=T, warning=F, comment=NA}
+for_boot <- cbind(late_cohort, status6 = later6$status6)
+```
+
+---------
+
+## CPH with Treatment
+Print output to check for match with previous c-index results
+```{r, echo=T, warning=F, comment=NA}
+c_cpht <- cph_vs_6_for_boot(for_boot)
+print(c_cpht)
+```
+
+## First Round
+```{r, echo=T, warning=F, comment=NA}
+set.seed(1)
+results_diff <- boot::boot(data = for_boot, statistic = cph_vs_6_for_boot, R = 1)
+storing_results <- results_diff$t
+```
+
+## Looped Bootstrap
+```{r, echo=T, warning=F, comment=NA}
+set.seed(1)
+count = 50
+while (count < 1000){
+  results_diff <- boot::boot(data = for_boot, statistic = cph_vs_6_for_boot, R = 50)
+  storing_results <- rbind(storing_results, results_diff$t)
+  print(count)
+  print(mean(storing_results))
+  print(sd(storing_results))
+  save(storing_results, file = './ResultsFiles/Saved_cph_vs_6_boot.rds')
+  count = count+50
+}
+```
+
+
+---------
+
+
+## CPH without Treatment
+Print output to check for match with previous c-index results
+```{r, echo=T, warning=F, comment=NA}
+c_cphn <- cphn_vs_6_for_boot(for_boot)
+print(c_cphn)
+```
+
+## First Round
+```{r, echo=T, warning=F, comment=NA}
+set.seed(1)
+results_diff_n <- boot::boot(data = for_boot, statistic = cphn_vs_6_for_boot, R = 1)
+storing_results_n <- results_diff_n$t
+```
+
+## Looped Bootstrap
+```{r, echo=T, warning=F, comment=NA}
+set.seed(1)
+count = 50
+while (count < 1000){
+  results_diff_n <- boot(data = for_boot, statistic = cphn_vs_6_for_boot, R = 50)
+  storing_results_n <- rbind(storing_results_n, results_diff_n$t)
+  print(count)
+  print(mean(storing_results_n))
+  print(sd(storing_results_n))
+  save(storing_results_n, file = './ResultsFiles/Saved_cphn_vs_6_boot.rds')
+  count = count+50
+}
+```
+
+
+---------
+
+
+## RSF with Treatment
+Print output to check for match with previous c-index results
+```{r, echo=T, warning=F, comment=NA}
+c_rsf <- rsf_vs_6_for_boot(for_boot)
+print(c_rsf)
+```
+
+## First Round
+```{r, echo=T, warning=F, comment=NA}
+set.seed(1)
+results_diff <- boot::boot(data = for_boot, statistic = rsf_vs_6_for_boot, R = 1)
+storing_results_r <- results_diff$t
+```
+
+## Looped Bootstrap
+```{r, echo=T, warning=F, comment=NA}
+set.seed(1)
+count = 10
+while (count < 1000){
+  results_diff <- boot::boot(data = for_boot, statistic = rsf_vs_6_for_boot, R = 10)
+  storing_results_r <- rbind(storing_results_r, results_diff$t)
+  print(count)
+  print(mean(storing_results_r))
+  print(sd(storing_results_r))
+  save(storing_results_r, file = './ResultsFiles/Saved_rsft_vs_6_boot.rds')
+  count = count+10
+}
+  
+```
+
+
+---------
+
+
+## RSF without Treatment
+Print output to check for match with previous c-index results
+```{r, echo=T, warning=F, comment=NA}
+c_rsfn <- rsfn_vs_6_for_boot(for_boot)
+print(c_rsfn)
+```
+
+## First Round
+```{r, echo=T, warning=F, comment=NA}
+set.seed(1)
+results_diff <- boot::boot(data = for_boot, statistic = rsfn_vs_6_for_boot, R = 1)
+storing_results_rn <- results_diff$t
+```
+
+## Looped Bootstrap
+```{r, echo=T, warning=F, comment=NA}
+set.seed(1)
+count = 10
+while (count < 1000){
+  results_diff <- boot::boot(data = for_boot, statistic = rsfn_vs_6_for_boot, R = 10)
+  storing_results_rn <- base::rbind(storing_results_rn, results_diff$t)
+  print(count)
+  print(mean(storing_results_rn))
+  print(sd(storing_results_rn))
+  save(storing_results_rn, file = './ResultsFiles/Saved_rsfn_vs_6_boot.rds')
+  count = count+10
+}
+  
+```
+
+
+---------
+
+
+## Calculating Differences
+### P-Values
+```{r, echo=T, warning=F, comment=NA}
+load('./ResultsFiles/Saved_cph_vs_6_boot.rds')
+cph_diff <- storing_results
+load('./ResultsFiles/Saved_cphn_vs_6_boot.rds')
+cphn_diff <- storing_results_n
+load('./ResultsFiles/Saved_rsft_vs_6_boot.rds')
+rsf_diff <- storing_results_r
+load('./ResultsFiles/Saved_rsfn_vs_6_boot.rds')
+rsfn_diff <- storing_results_rn
+
+
+# Calculate Z-scores
+cpht_diff_Z <- c_cpht / sd(cph_diff)
+cphn_diff_Z <- c_cphn / sd(cphn_diff)
+rsft_diff_Z <- c_rsf / sd(rsf_diff)
+rsfn_diff_Z <- c_rsfn / sd(rsfn_diff)
+
+# Calculate p-values
+p_cpht <- 2 * pnorm(q = cpht_diff_Z, lower.tail = F)
+print('CPHT')
+print(p_cpht)
+
+p_cphn <- 2 * pnorm(q = cphn_diff_Z, lower.tail = F)
+print('CPHN')
+print(p_cphn)
+
+p_rsft <- 2 * pnorm(q = rsft_diff_Z, lower.tail = F)
+print('RSFT')
+print(p_rsft)
+
+p_rsfn <- 2 * pnorm(q = rsfn_diff_Z, lower.tail = F)
+print('RSFN')
+print(p_rsfn)
+```
+
+
+### CPH, With Treatment versus 6-status
+```{r, echo=T, warning=F, comment=NA}
+survival_predictions_cph <- predict(train_with_treatments.fit, newdata = late_cohort, type = 'risk')
+print(Hmisc::rcorrp.cens(-survival_predictions_cph, later6$status6,
+                         Surv(late_cohort$t,late_cohort$died_noT), method = 2))
+```
+
+### RSF, With Treatment versus 6-status
+```{r, echo=T, warning=F, comment=NA}
+print(Hmisc::rcorrp.cens(-survival_predictions_t$predicted, later6$status6,
+                         Surv(late_cohort$t,late_cohort$died_noT), method = 2))
+```
+
+### CPH, No Treatment versus 6-status
+```{r, echo=T, warning=F, comment=NA}
+survival_predictions_cphn <- predict(train_no_treatments.fit, newdata = late_cohort, type = 'risk')
+print(Hmisc::rcorrp.cens(-survival_predictions_cphn, later6$status6,
+                         Surv(late_cohort$t,late_cohort$died_noT), method = 2))
+```
+
+### RSF, No Treatment versus 6-status
+```{r, echo=T, warning=F, comment=NA}
+survival_predictions_n <- predict(rsf_n, newdata  = late_cohort, seed = -1)
+print(Hmisc::rcorrp.cens(-survival_predictions_n$predicted, later6$status6,
+                         Surv(late_cohort$t,late_cohort$died_noT), method = 2))
+```

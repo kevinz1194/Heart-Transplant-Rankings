@@ -31,5 +31,5 @@ Calculates Brier scores (**Brier, Verification of forecasts expressed in terms o
 ### 9. Bootstrapping_c_indices_Harrells.Rmd (R 4.2.3)
 Uses bootstrapping to find confidence intervals for Harrell's c-indices.
 
-### 9. Bootstrapping_c_differences.Rmd (R 4.2.3)
+### 10. Bootstrapping_c_differences.Rmd (R 4.2.3)
 Uses bootstrapping to find confidence intervals for Wald tests of differences.

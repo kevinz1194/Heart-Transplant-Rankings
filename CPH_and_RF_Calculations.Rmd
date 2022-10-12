@@ -170,7 +170,7 @@ rsf_t <- randomForestSRC::rfsrc(formula_treat,
                                 ntreeTry = 1000, mtryStart = 20, nodesizeTry = 5, 
                                 seed = -1, ntime = 0, save.memory = T)
 survival_predictions_t <- predict(rsf_t, newdata = late_cohort, seed = -1)
-c_rsf_with_treatments <- Hmisc::rcorrp.cens(-survival_predictions_t$predicted, 
+c_rsf_with_treatments <- Hmisc::rcorr.cens(-survival_predictions_t$predicted, 
                                            Surv(late_cohort$t,late_cohort$died_noT))
 
 Hmisc::rcorrp.cens(x1=-survival_predictions_t$predicted, x2=later6$status6,

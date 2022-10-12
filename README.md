@@ -19,6 +19,8 @@ Reads in csv files, imputes missing data using mice.
 ### 5. CPH_and_RF_Calculations.Rmd (R 4.2.3)
 Runs the primary models, Cox Proportional Hazards and Random Survival Forest, with and without treatments. Includes hyperparameter tuning.
 
+Updated 10/2022: Adds the second rcorrp.cens method.
+
 ### 6. Variable_importance.Rmd (R 4.2.3)
 Calculates single and joint variable importance in the Random Survival Forest models.
 

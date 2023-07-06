@@ -1,6 +1,6 @@
 # Heart-Transplant-Rankings
 
-Code files corresponding to the 'The Accuracy of Initial US Heart Candidate Rankings'. <br />
+Code files corresponding to the *The Accuracy of Initial US Heart Candidate Rankings* by Pezler, Zhang, et al., published in *JACC: Heart Failure*. Full manuscript available at https://pubmed.ncbi.nlm.nih.gov/37052549/.  <br />
 
 Files should be run in this order:
 

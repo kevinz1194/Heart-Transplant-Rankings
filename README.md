@@ -2,7 +2,7 @@
 
 Code files corresponding to the *The Accuracy of Initial US Heart Candidate Rankings* by Pezler, Zhang, et al., published in *JACC: Heart Failure*. Full manuscript available at https://pubmed.ncbi.nlm.nih.gov/37052549/.  <br />
 
-Files should be run in this order:
+All files are written and tested using R 4.2.2. Files should be run in this order:
 
 ### 1. Survival_Data_Initial_Processing_UC.ipynb (Python 3.8.8)
 Uses raw SRTR data and performs initial cleaning procedures: inclusion-exclusion criteria, derived variables. Splits data into the early cohort/training data from 2010-2017 and the late cohort/test data from 11/2018 to 3/2020.
